@@ -1,0 +1,539 @@
+---
+title: "Creating Better Healthcare Through the Use of Data"
+author: "Matthew Coleman & Daniel Lai"
+date: "5/27/2019"
+output: 
+  pdf_document:
+    number_sections: true
+indent: True
+---
+\centering
+<p>
+
+
+<p>
+
+\raggedright
+\clearpage
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include = FALSE}
+library(ggplot2)
+library(car)
+CDI <- readRDS('CDI.rds')
+TotalPop <- CDI$TotalPop
+Physicians <- CDI$Physicians
+IncPerCap <- CDI$IncPerCap
+LandArea <- CDI$LandArea
+```
+# Abstract:
+
+For our project, we investigated different aspects of a county that would affect the number of physicians in a county. Variables we explored included: total population, land area, income per capita, personal income, region, crimes, population over 65, and poverty.
+
+
+In the first section of our analysis, we explored the effects that logarithm of the total population, land area, and income per capita had on the logarithm of physicians. From our analysis we discovered $\frac{1}{\sqrt{TotalPopulation}}$ and $log(Physicians)$ are the best transformations to have the variables adhere to normality. We also found a positive relationship between log(physicians) and the logarithm of income per capita, as well as a negative relationship with log(physicians) and log(land area); note, all of these relationships occur when all other predictors are held constant. Overall, many of our initial assumptions about the relationships were confirmed as being correct.
+
+
+In the analysis of our second model we questioned the initial model adequacy, and explored larger models to learn whether we could improve upon the initial model.  We found the addition of poverty, population over 65, bachelor’s degree and personal income as appropriate in the creation of a better model. All of these predictors increased our coefficient of determination, meaning we could explain more of the variation in the response with the linear relationship with the predictors. After fitting the new model, we discovered the initial model was not the best. A larger model improved our analysis, and we found more predictors that had associations with the logarithm of the physicians in counties.  
+
+
+# Problem and Motivation:
+
+i) Background:  
+	Our data set covers the 1990 county demographic information of the 440 most populous counties in the United States. There are 16 variables total and 8 of which we will be exploring as possible predictor to the number of physicians in a county. We are going to be exploring two different models of physicians being regressed onto different predictors. The first model is going to contain total population, land area, and income per capita as predictors. The second model is going to begin with total population and region, with possible exploration into population above 65 years of age, bachelor, poverty rates, and personal income.  
+	
+ii) Motivation:   
+This report is important because the results of our models will allow us to create a predictive model which can take in a number of predictors and give a number of physicians in a county. The predictive model can also allow us to see how many physicians a county needs to properly serve the population based on different factors. This is an important problem because there are many areas that are underserved, and looking at factors such as age above 65 allows us to see there needs to be an increase in health coverage.  
+
+# Questions of Interest
+
+* Which factors have a positive linear relationship with the number of physicians? Which ones have a negative relationship?
+* Do all the assumptions of linear regression hold? If they do not, which transformations will correct these failed assumptions?
+* Are there better models that will allow us to remove variables which are not influential to our analyses?
+* Are there better models with more variables which can explain a greater amount of variability in physicians?
+* How much of the variability in physicians can be explained by a linear relationship with our variables? 
+
+
+\begin{center} Regression Methods \end{center}
+\begin{center} Regression Methods used for Part I outlined below: \end{center}
+
+* Diagnostic Plots:
+  + Scatterplot Matrices
+  + Added-Variable Plots
+  + Residuals vs. Fitted
+  + Scale-Location
+  + Q-Q Plots
+* Ordinary Least Squares Regression Models
+* Power Transformations and Box-Cox Method
+* Partial F-Tests (including Global F-Tests)
+* Non-Constant Variance Tests
+
+\begin{center} Regression Methods used for Part II outlined below: \end{center}
+
+* Diagnostic Plots:
+  + Added-Variable Plots
+  + Residuals vs. Fitted
+  + Scale-Location
+  + Q-Q Plots
+* Power Transformations and Box-Cox Methods
+* t-Tests
+* Partial F-Tests
+* Outlier Tests
+* Influence Index Plots
+* Residuals vs. Leverage Plots
+
+
+# Analysis
+
+## Model 1
+
+In this report, we are going to explore the relationship between the number of physicians and total population, land area and income per capita with the multiple linear regression model:
+
+We will begin with the model below, and explore into possibly better models.
+
+\begin{center} $Physicians \sim log(TotalPop)+LandArea+IncPerCap$ \end{center}
+
+The data for this report is the county demographic information (CDI), and contains demographic information on the 440 most populous counties in the United States. The variables we will be working with and their descriptions are listed below:
+
+Variable   | Description
+-----------|------------
+Physicians | Number of professionally active nonfederal physicians during 1990. 
+TotalPop   | Estimated 1990 population.
+LandArea   | Land area (square miles).
+IncPerCap  | Per capita income of 1990 CDI population (dollars).
+
+### Exploratory Data Analysis
+
+One relationship I will want to explore is the relationship between population and physicians. I infer that there is a positive relationship between population and physicians because as the number of people increases, there is likely to also be more physicians. I would also expect income per capita to have a positive association with physicians because areas with higher income would have better access to healthcare as a result of better infrastructure and a more lucrative customer base. I am not expecting there to be a relationship between land area and the number of physicians. I believe population is going to be most important, and regardless of whether a county is large or small, if the population is small there will not be many physicians and if it is large there will be many. Between predictors, I would not expect  association between income per capita and any of the other predictors. There could be some association between land area and total population, but population density becomes an issue. There can be large counties with low population density such as rural counties, as well as large areas with large populations, such as Los Angeles county.
+
+```{r}
+scatterplotMatrix(cbind(TotalPop,Physicians,IncPerCap,LandArea))
+```
+
+The scatterplot matrix reveals that the total population has a positive linear relationship with physicians. Another noteworthy relationship is that between income per capita and physicians. The distribution of each variable demonstrates that total population, physicians, and land area are right skewed. Income per capita is slightly right skewed, but is more close to normal than the other variables.
+
+Having right skewed total population data means there are more lower population counties than there are higher population counties Plotting a histogram of the total population will give a better view of this idea.
+
+```{r}
+par(mfrow = c(1,2))
+
+plot(x = TotalPop, y = Physicians)
+hist(TotalPop)
+
+#ggplot(data = CDI, aes(x = TotalPop, y = Physicians)) +
+#  geom_point()
+```
+
+These plots confirm that there is a heavy right skew to the total population. A Log transformation on the total population would help make the data more distributionally similar to normal.
+
+```{r}
+par(mfrow = c(1,2))
+hist(log(TotalPop))
+plot(log(TotalPop), Physicians)
+```
+
+While this is not perfect, it is an improvement from the untransformed variable.
+
+### Model Fitting
+
+```{r}
+full.lm <- lm(Physicians ~ log(TotalPop) +  LandArea + IncPerCap)
+```
+
+We can look at the marginal relationships after removing the effects of the other predictors with an added variable plot
+
+```{r}
+avPlots(full.lm)
+```
+
+When adjusting for all the other predictors, physicians has a positive relationship with the logarithm of the total population. Additionally the added variable plot for land area shows a small negative relationship between physicians and land area when adjusting for all other predictors. It appears that physicians and income per capita have no relationship, so I will observe it more closely.
+
+```{r}
+avPlot(full.lm, variable = IncPerCap)
+```
+
+A closer look at the added variable plot of income per capita shows that when adjusting for all other predictors, there is almost no relationship between the number of physicians and the income per capita.
+
+Running the summary on the linear model will show us relevant constants in the regression:
+
+```{r}
+summary(full.lm)
+``` 
+
+The summary output shows that $R^2=.6202$. This means that 62.02% of the variability in physicians can be be explained by land area, income per capita and the logarithm of the total population.
+
+Interpretation of the regression coefficients:
+
+* The expected number of physicians is -17060 when all predictors are zero. This does not have much meaning, because if all the other predictors are zero, then the city does not exist.
+* When all other predictors are held constant, 30.23 physicians is the expected change when there is a 5% increase in total population.
+* When all other predictors are held constant, the number of physicians is expected to go down by 1 when there is a 20 square mile increase in land area.
+* The number of physicians is expected to go up by 1 with every 77.8 increase in income per capita, all other predictors held constant.
+
+It seems that in this fit, log(TotalPop) and IncPerCap have a positive relationship with the number of physicians, meanwhile LandArea has a negative relationship with the number of physicians.
+
+After checking the fit, we will want to see whether the fit meets the linear assumptions. There are 4 key assumptions for linear regression: Linearity, Independence, Normality, and Equal Variance. We asses Linearity, Normality and Equal Variance below with the use of multiple residual diagnostic plots:
+
+Linearity:
+```{r}
+par(mfrow = c(1,2))
+plot(full.lm, which = 1)
+plot(full.lm, which = 3)
+```
+
+Looking at the Residuals vs. Fitted plot and the Scale-Location plot reveals that linearity is violated.
+
+Normality:
+```{r}
+plot(full.lm, which = 2)
+```
+
+Observing the Normal Q-Q plot reveals that the data has a right skew because of the upward-opening shape of the points.   
+
+Equal Variance for $\epsilon_i,\space \sigma^2$:
+```{r}
+plot(full.lm, which = 3)
+```
+
+Again, observing the scale-location plot reveals that equal variance for $\epsilon_i,\space \sigma^2$ is violated because the points are not equally scattered.  
+
+Because all of the linear regression assumptions were violated, It would be proper procedure to attempt transformations to correct these violations.  
+
+```{r}
+pwrtransform <-  powerTransform(cbind(TotalPop, LandArea ,IncPerCap) ~ 1, CDI )
+summary(pwrtransform)
+```
+
+Running a power transform on the data reveals that recommended values of lambda for total population, land area, and income per capita are -0.5, 0, and -0.5, respectively. The lower bound for the transformation on income per capita is very close to 0, so I am going to choose a log transformation for a more easily interpretable model.  
+
+```{r}
+testTransform(pwrtransform, lambda = c(-.5,0,0))
+```
+
+Testing the values of lambda corresponding to each predictor shows that it will be a proper transformation. of all variables.  
+
+Next, I will use the box-cox method to determine the best transformation for physicians.  
+```{r}
+phystrnsfrm.lm <- lm(Physicians~ I(TotalPop^(-1/2))  +log(LandArea) + log(IncPerCap))
+boxCox(phystrnsfrm.lm)
+```
+
+Again, the confidence interval for lambda is very close to 0, so I will choose a log transformation for physicians as well.  
+
+Now to create a linear model of the final transformation and recheck the diagnostics. 
+
+```{r} 
+final.tran <- lm(log(Physicians)~ I(TotalPop^(-1/2)) + log(LandArea) + log(IncPerCap) )
+```
+
+Linearity  
+```{r}
+par(mfrow = c(1,2))
+plot(final.tran, add.smooth = FALSE, which = 1)
+plot(final.tran, add.smooth = FALSE, which = 3)
+```
+
+The residuals vs fitted plot has improved immensely from the untransfromed linear model. There is not a random scattering of residuals, without a clear trend in residuals. The same applies to the scale-location plot, which has a random scattering of residuals.  
+
+Normality:
+```{r}
+plot(final.tran, which = 2)
+```
+
+The normal Q-Q plot demonstrates normality.  
+
+Equal variance for $\epsilon_i,\space \sigma^2$:
+```{r}
+plot(final.tran, add.smooth = FALSE, which = 3)
+```
+
+The scale-location plot demonstrates even scattering of the $\sqrt{Standardized\space Residuals}$, which suggests equal variance.  
+
+
+```{r}
+summary(final.tran)
+```
+
+The summary output of our transformed model shows that $R^2= .8199$. This means that 81.99% of the variability in the log(Physicians) can be be explained by Log(LandArea), Log(IncPerCap) and log(TotalPop).  
+
+Interpretation of the coefficients in this model are as follows.  
+
+* When all predictors are 0, the value of log(Physicians) is 3.25, This coefficient does not mean much because $\frac{1}{\sqrt{TotalPop}}$ is never equal to 0.
+* When all predictors are held constant, as the total population increases by 1 unit, the number of  $-1365\frac{1}{\sqrt{TotalPop}}$, increases by $-1365\frac{1}{\sqrt{x_{i}}}+1365\frac{1}{\sqrt{x_{i-1}}}$, where $x_{i-1}$ is the previous value of $x_i$. This means that as the value of population gets larger, the value of -1365 approaches 0. As a result, the value of log(Physicians) increases as the term $-1365\times\frac{1}{\sqrt{x_i}}$ becomes less negative.
+* When all other predictors are held constant, there is a -8.24% change in the expected value of physicians when LandArea is increased by 1%.
+* The expected number of physicians increases by 6.37% when income per capita increases by 1%.
+
+
+```{r}
+confint(final.tran)
+```
+
+Interpretations:  
+
+* I am 95% confident that the parameter $\beta_0$ is within the interval (0.511,5.988). In our case, this is not an especially important interval.
+* I am 95% confident that when the total population increases by one unit, all other predictors constant, the expected change of $Y_i$ is within the interval $(-1439.8\times\frac{1}{\sqrt{x_i}}+1439.8\times\frac{1}{\sqrt{x_i + 1}},-1290.7\times\frac{1}{\sqrt{x_i}}+1290.7\times\frac{1}{\sqrt{x_i + 1}})\space x_i\neq 0$ Tthe interpretation of this coefficient is that each side of the interval is the change in the slope between the previous point and the next point.
+* I am  95% confident that when land area increases by 7.5%, the expected number of physicians will change by a percentage within the interval (-.1947,-.9974), all other predictors held constant.
+* I am 95% confident that when all other predictors are held constant, increasing income per capita is increased by 2.5% will increase the physicians by a percentage the interval (.9485,2.242)  
+
+To check whether there is a linear relationship, we can run a global F-test on all the predictors at an $\alpha = .01$ level. Our hypothesis will be: $H_0:\beta_1=\beta_2=\beta_3=0$ vs. $H_0:\beta_i\neq0$ for some $i=1,2,3$. In this case $\beta_1$ is the coefficient for $TotalPop^{-\frac{1}{2}}$, $\beta_2$ is the coefficient for $log(LandArea)$ and $\beta_3$ is the coefficient for $log(IncPerCap)$.  
+
+```{r}
+null.lm <- lm(log(Physicians)~1)
+anova(null.lm, final.tran)
+```
+
+The p-value for this test is $2.2 \times 10^{-16}$ , therefore, I reject the null hypothesis and suggest there is a linear relationship between the predictors and log(physicians).  
+
+
+Finally, to check whether the variance increases or decreases with $TotalPop^{-\frac{1}{2}}$ included.  
+
+$H_0:$ The model has constant variance vs $H_a:$ The variance decreases with $TotalPop^{-\frac{1}{2}}$.  
+
+```{r}
+res <- final.tran$residuals
+#par(mfrow = c(1,3))
+#plot(I(TotalPop^(-1/2)), res)
+#plot(log(LandArea), res)
+#plot(log(IncPerCap), res)
+
+ncvTest(final.tran, ~ I(log(LandArea) + log(IncPerCap)))
+ncvTest(final.tran, ~ -I(TotalPop^(-1/2)) + log(LandArea) + log(IncPerCap))
+
+```
+
+Because the p value for the non-constant variance test is greater than $\alpha = .05$, I failed to reject the null and concluded there is constant variance with $TotalPop^{-\frac{1}{2}}$  
+
+
+### Model 1 Final Analysis:
+After working with our data, we came to some conclusions on how different predictors effected the logarithm of physicians within counties. After doing some exploratory analysis into proper transformations, we determined $log(LandArea)$, $Log(IncomePerCap)$, and the reciprocal square root of the total population ($\frac{1}{\sqrt{TotalPopulation}}$) would be the most appropriate transformations for analyzing the logarithm of physicians. From our analysis, we determined that $\frac{1}{\sqrt{TotalPopulation}}$ and $log(Physicians)$ have the highest correlation. This is logical because as the population increases there are more patients to treat, as well as a grater pool of trained physicians in the workforce. Similarly, when income per capita increases the number of physicians increases. An interesting insight from our analysis is that physicians had a negative relationship with land area. This is intuitively correct because land area does not interact with total population; a county with large land area could  be dense similar to Los Angeles, or it could be desolate similar to many cities in the midwest. Through linear models and testing, we were able to confirm our initial hypothesis about the data.  
+
+
+## Model 2
+
+The model $Physicians \sim TotalPop + Region$ is also of interest, and will allow us to look at another factor, Region, and its effect on the number of physicians.  
+
+```{r}
+fit1 <- lm(Physicians ~ TotalPop + Region, data = CDI)
+summary(fit1)
+
+```
+
+### Diagnostic check:  
+
+Linearity:  
+```{r}
+par(mfrow = c(1,2))
+plot(fit1, which = 1)
+plot(fit1, which = 3)
+
+```
+
+After observing the residuals vs. fitted and scale-location plots, we can see that linearity is violated.  
+
+Normality assumption:  
+```{r}
+plot(fit1, which = 2)
+
+```
+
+The Q-Q plot has heavy tails, so we know that the normality assumption is violated.  
+
+
+Equal Variance Assumption:  
+```{r}
+plot(fit1, which = 3)
+```
+
+The scale-location plot shows that equal variance is violated.  
+
+### Variable transformation
+
+```{r}
+pwrtrans.fit1 <- powerTransform(cbind(TotalPop, Region)~1, CDI)
+summary(pwrtrans.fit1)
+```
+
+
+```{r}
+pwrtrans.dat <- with(CDI, data.frame(Physicians, I(TotalPop^(-1/2)), Region))
+
+region.tran <- lm(Physicians ~ I(TotalPop^(-1/2)) + Region, data = pwrtrans.dat)
+
+summary(powerTransform(region.tran))
+
+```
+
+The interval for the box-Cox method has $\lambda = -0.065$, which is very close to 0. To make interpretability of the model easier, I will choose $\lambda =0$, which will be a logarithmic transform of the response.  
+
+### Transformation Checking and Model Exploration
+
+```{r}
+region.final <- lm(log(Physicians) ~ I(TotalPop^(-1/2)) + factor(Region), data = CDI)
+par(mfrow = c(1,2))
+plot(region.final, add.smooth = FALSE, which = 1)
+plot(region.final, add.smooth = FALSE, which = 3)
+```
+
+The residuals vs fitted plot has improved immensely from the transformed linear model. There is a random scattering of residuals, without a clear trend in residuals. The same applies to the scale-location plot, which has a random scattering of residuals.  
+
+```{r}
+plot(region.final, which = 2)
+```
+
+The new Q-Q plot demonstrates normality.  
+
+```{r}
+plot(region.final, add.smooth = FALSE, which = 3)
+```
+
+The $\sqrt{Starndardized\space Residuals}$ are randomly scattered, demonstrating equal variance.  
+
+
+```{r}
+nonpar.model <- lm(log(Physicians) ~ factor(Region)*I(TotalPop^(-1/2)), data = CDI)
+summary(nonpar.model)
+```
+
+There is no interaction between total population and region, so we will use a parallel model. The model is parallel because the total pop does not have a different affect on the log(physicians) when in one region as opposed to another. The mean functions will look like the following. Group 0 is region 1 (NE), group 1 is region 2 (NC), group 2 is region 3 (S), and group 3 is region 4 (W).  
+
+```{r}
+par.model <- lm(log(Physicians) ~ factor(Region) + I(TotalPop^(-1/2)), data = CDI)
+summary(par.model)
+```
+
+Group | Mean Function
+------|------------
+0     | $9.221 + -1456\times\frac{1}{\sqrt{TotalPop}}$
+1     | $8.541  -.08957 -1456\times\frac{1}{\sqrt{TotalPop}}$
+2     | $8.541  -.01321 -1456\times\frac{1}{\sqrt{TotalPop}}$
+3     | $8.541  - .09894 -1456\times\frac{1}{\sqrt{TotalPop}}$
+
+Fitting the model with region included allows us to verify whether it is significant in our regression.  
+
+```{r}
+summary(lm(log(Physicians) ~ Region + I(TotalPop^(-1/2)), data = CDI))
+```
+
+Carrying out a t-test on the hypothesis $\beta_{region} = 0$ vs. $\beta_{region}\neq0$ at an $\alpha = .05$ significance level shows that at a p-value .441>.05, I fail to reject the null, and conclude that $\beta_{region}=0$. I will not remove it from the model.  
+
+```{r}
+non.region <- lm(log(Physicians) ~ I(TotalPop^(-1/2)), data = CDI)
+summary(non.region)
+```
+
+There are many other variables such as crimes, bachelor's degrees, and poverty that can build a better explained model. We will begin to explain different models through AIC and BIC model selection. We will be choosing from the following variables:  
+
+Variable    | Description
+------------|------------
+Pop65       | Percent of 1990 CDI population aged 65 years and older 
+Crimes      | Total number of serious crimes in 1990, as reported by law enforcement agencies
+Bachelor    | Percent of adult population (25 years or older) with a bachelor's degree
+Poverty     | Percent of 1990 CDI population with income below poverty level
+PersonalInc | Total income of 1990 CDI population (in millions of dollars)
+
+
+The first exploration into model selection is going to be with forwards AIC:  
+```{r}
+#AIC
+mod.full <- lm(log(Physicians) ~ I(TotalPop^(-1/2)) + Pop65 + Crimes + 
+                 Bachelor + Poverty + PersonalInc, data = CDI)
+mod.0 <- lm(log(Physicians) ~I(TotalPop^(-1/2)) , data = CDI)
+step(mod.0, scope = list(lower = mod.0, upper = mod.full), direction = "forward")
+
+```
+
+Forwards AIC seems to choose all predictors other than Crimes.  
+
+Next, we will explore backwards AIC to see whether it yield a distinct model.  
+```{r}
+
+step(mod.full, scope = list(lower = mod.0, upper = mod.full), direction = "backward")
+
+```
+
+Finally, stepwise AIC:  
+```{r}
+step(mod.0, scope = list(lower = mod.0, upper = mod.full))
+```
+
+Both forwards, backwards, and stepwise AIC yielded the same models.   
+
+Trying BIC with k=log(n) ,where n is the number of observations, may yield a smaller model as the sample size is taken into account.  
+
+Forwards BIC: 
+```{r}
+step(mod.0, scope = list(lower = mod.0, upper = mod.full), 
+     direction = "forward", k=log(length(Physicians)))
+```
+
+Backwards BIC:  
+```{r}
+step(mod.full, scope = list(lower = mod.0, upper = mod.full), 
+     direction = "backward", k = log(length(Physicians)))
+```
+
+Stepwise BIC: 
+```{r}
+step(mod.0, scope = list(lower = mod.0, upper = mod.full), 
+     k = log(length(Physicians)))
+```
+
+Again, the BIC criterion gave the same models with Crimes not included. We will then fit the model with all the variables except Crimes.
+
+
+After fitting the new model, we can run a partial-F test to check whether the new model or the submodel is better:
+
+Hypothesis: $H_0:$ The submodel is better vs $H_a:$ The full model is better.  
+```{r}
+old.lm <- lm(log(Physicians) ~ I(TotalPop^(-1/2)) + Region, data = CDI)
+new.lm <- lm(log(Physicians) ~ I(TotalPop^(-1/2)) + Region + Pop65 + 
+               Bachelor + Poverty + PersonalInc, data = CDI)
+anova(old.lm,new.lm, data = CDI)
+
+```
+
+$2.2\times 10^{-16}<0.05$, so at an $\alpha = 0.05$ level, I reject the null hypothesis and suggest that the new model is better than the full model.
+
+
+Finding any influential points in our new model will be important to choosing the best model:  
+```{r}
+influenceIndexPlot(new.lm)
+outlierTest(new.lm)
+```
+
+The influence index plot demonstrates that observations 2 and 128 have the largest Cook's distance. Running an outlier test shows that the Bonferoni-corrected p-value of $0.013891$ for observation 128 makes it an outlier. Based on the outlier test and the Cook's distance, it would be safe to assume this is an influential point in the dataset.
+
+
+```{r}
+avPlots(new.lm)
+```
+
+The added variable plots demonstrate how observations 2 and 128 are points of interest. Observation 2 has high leverage because it is an "outlier in x" as its distance from all the other points is very large. This means that $h_{ii}$ is very large, and would explain why the Cook's distance is so large.
+
+```{r}
+plot(new.lm, which = 5)
+```
+
+```{r}
+summary(new.lm)
+
+
+```
+
+
+
+Looking at the plot of the leverage against standardized residuals demonstrates approximate values of interest with observation 2 and 128. observation 2 has a leverage of $\sim0.433$ and a standardized residual of $\sim2.9$. The Cook's distance of this point is $\sim0.75$, which, while not above 1, would mean it is influential and removing it would have an effect on the regression. The standardized residual of observation 128 is higher at $\sim4.15$, making it an "outlier in Y." Despite this, the Cook's distance is less than .5 and would not have as large of an influence on the regression if it was removed. Another value of interest is observation 188, which has a large residual of $\sim3.5$, making it an "extreme value in Y," but not characterized as a Bonferoni-outlier.  
+
+
+### Model 2 Analysis
+
+We began our second analysis with a model of physicians regressed on total population and county region. After testing different transformations, we found $\frac{1}{\sqrt{TotalPop}}$ was the best transformation, meanwhile region remained untransformed. Carrying out a t-Test on the coefficient for region revealed it was insignificant, so we removed it from the model. After doing appropriate AIC and hypothesis testing, we determined a larger model with population over 65, bachelors degree's, poverty, and personal income added was a better choice. Adding these predictors is logical intuitively. When a county has a larger population of people over 65, it is going to be necessary to have more physicians as older people will have more health issues. Personal income and bachelors degree were other factors that had positive relationships with the number of log physicians. One can assume when income increases, the number of physicians will increase because there is better access to healthcare in higher income areas. In areas with higher education rates, it is likely that there are educated individuals with medical school degrees. It is logical region does not have any effect on number of physicians given all the counties were sorted on population. If all of the counties had similar populations, education levels, and incomes, then region would not have a large effect on number of physicians. Linear models and testing allowed us to conclude that our initial hypothesis was incorrect.  
+
+
+
+
+
